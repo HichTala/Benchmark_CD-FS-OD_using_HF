@@ -1,0 +1,7 @@
+runs/*
+wandb/*
+configs/dataset/*
+configs/models/*
+
+!configs/dataset/template.py
+!configs/models/template.json
