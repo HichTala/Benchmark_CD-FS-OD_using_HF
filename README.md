@@ -80,18 +80,7 @@ pip install -r requirements.txt
 
 ## 📄 Citation
 
-If you use this code, please consider citing our preprint:
-```
-@misc{talaoubrid2025analyzingimpactlowrankadaptation,
-  title={Analyzing the Impact of Low-Rank Adaptation for Cross-Domain Few-Shot Object Detection in Aerial Images}, 
-  author={Hicham Talaoubrid and Anissa Mokraoui and Ismail Ben Ayed and Axel Prouvost and Sonimith Hang and Monit Korn and Rémi Harvey},
-  year={2025},
-  eprint={2504.06330},
-  archivePrefix={arXiv},
-  primaryClass={cs.CV},
-  url={https://arxiv.org/abs/2504.06330}, 
-}
-```
+Coming soon
 
 ## 📨 Contact
 
