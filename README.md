@@ -1,4 +1,4 @@
-# Analyzing the Impact of Low-Rank Adaptation for Cross-Domain Few-Shot Object Detection in Aerial Images
+# Benchmarking Cross-Domain Few-Shot Object Detection in Aerial Imagery
 
 This repository contains the official implementation of our paper:\
 📄 Benchmarking Cross-Domain Few-Shot Object Detection in Aerial Imagery
