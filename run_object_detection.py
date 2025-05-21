@@ -133,10 +133,13 @@ def augment_and_transform_batch(
 
         # apply augmentations
         if [0, 0] in np.array(objects["bbox"])[:, 2:]:
-            [i, _], _ = np.where(np.array(objects["bbox"])[:, 2:] == 0)
+            to_remove, _ = np.where(np.array(objects["bbox"])[:, 2:] == 0)
 
-            for key in objects.keys():
-                objects[key].pop(i)
+            to_remove = list(set(to_remove))
+            to_remove.sort()
+            for i in range(len(to_remove)):
+                for key in objects.keys():
+                    objects[key].pop(to_remove[i] - i)
 
 
         output = transform(image=image, bboxes=objects["bbox"], category=objects["category"])
