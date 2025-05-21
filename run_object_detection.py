@@ -44,8 +44,8 @@ from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
 
-from fsdetection.datasets.fs_load import load_fs_dataset
-from fsdetection.transformers.fs_trainer import FSTrainer
+from datasets import load_dataset
+from transformers import Trainer
 
 logger = logging.getLogger(__name__)
 
@@ -324,72 +324,18 @@ class ModelArguments:
     )
 
 
-@dataclass
-class FewShotArguments:
-    shots: int = field(
-        default=10,
-        metadata={
-            "help": (
-                "Number of shots for few-shot object detection. "
-                "ex: 5-shots means 5 images per class."
-            )
-        }
-    )
-
-    freeze_modules: Optional[List[str]] = field(
-        default_factory=lambda: [],
-        metadata={
-            "help": (
-                "Specifies a list of modules to remain untrainable during training. "
-                "Note: This option cannot be used simultaneously with 'unfreeze_modules'."
-            )
-        }
-    )
-
-    unfreeze_modules: Optional[List[str]] = field(
-        default_factory=lambda: [],
-        metadata={
-            "help": (
-                "Specifies a list of modules to remain trainable during training while all others will be frozen. "
-                "Note: This option cannot be used simultaneously with 'freeze_modules'."
-            )
-        }
-    )
-
-    freeze_at: Optional[List[str]] = field(
-        default_factory=lambda: [],
-        metadata={
-            "help": (
-                "If set to 0, freezes all parameters; otherwise, freezes layers up to the specified number, or, if half is given, freezes half of the module. "
-                "Must be a list of the same length as 'freeze_modules' or not specified if all modules are wanted to be trained/frozen."
-                "Cannot be used if 'bias' or 'norm' is specified in either 'unfreeze_modules' or 'freeze_modules'."
-            )
-        }
-    )
-
-    use_lora: Optional[bool] = field(
-        default=False,
-        metadata={"help": "Whether to enable LoRA adaptation (True/False)."}
-    )
-
-    lora_rank: Optional[int] = field(
-        default=8,
-        metadata={"help": "Rank for LoRA adaptation"},
-    )
-
-
 def main():
     # See all possible arguments in src/transformers/training_args.py
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
 
-    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments, FewShotArguments))
+    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         # If we pass only one argument to the script and it's the path to a json file,
         # let's parse it to get our arguments.
-        model_args, data_args, training_args, fs_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
+        model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
-        model_args, data_args, training_args, fs_args = parser.parse_args_into_dataclasses()
+        model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
     # # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # # information sent is the one passed as arguments along with your Python/PyTorch versions.
@@ -440,7 +386,7 @@ def main():
     # Load dataset, prepare splits
     # ------------------------------------------------------------------------------------------------
 
-    dataset = load_fs_dataset(
+    dataset = load_dataset(
         data_args.dataset_name, cache_dir=model_args.cache_dir, trust_remote_code=model_args.trust_remote_code
     )
 
@@ -456,8 +402,6 @@ def main():
         split = dataset["train"].train_test_split(data_args.train_val_split, seed=training_args.seed)
         dataset["train"] = split["train"]
         dataset["validation"] = split["test"]
-
-    dataset["train"].sampling(shots=fs_args.shots, seed=training_args.seed)
 
     # Get dataset categories and prepare mappings for label_name <-> label_id
     categories = dataset["train"].features["objects"].feature["category"].names
@@ -493,7 +437,6 @@ def main():
         size={"max_height": data_args.image_square_size, "max_width": data_args.image_square_size},
         do_pad=True,
         pad_size={"height": data_args.image_square_size, "width": data_args.image_square_size},
-        use_fast=False,
         **common_pretrained_args,
     )
 
@@ -533,10 +476,9 @@ def main():
         compute_metrics, image_processor=image_processor, id2label=id2label, threshold=0.0
     )
 
-    trainer = FSTrainer(
+    trainer = Trainer(
         model=model,
         args=training_args,
-        fs_args=fs_args,
         train_dataset=dataset["train"] if training_args.do_train else None,
         eval_dataset=dataset["validation"] if training_args.do_eval else None,
         processing_class=image_processor,
