@@ -132,6 +132,13 @@ def augment_and_transform_batch(
         image = np.array(image.convert("RGB"))
 
         # apply augmentations
+        if [0, 0] in np.array(objects["bbox"])[:, 2:]:
+            [i, _], _ = np.where(np.array(objects["bbox"])[:, 2:] == 0)
+
+            for key in objects.keys():
+                objects[key].pop(i)
+
+
         output = transform(image=image, bboxes=objects["bbox"], category=objects["category"])
         images.append(output["image"])
 
