@@ -88,7 +88,7 @@ def main(args):
         config["dataset_name"] = dataset_name
         config["output_dir"] = output_dir
         config["logging_strategy"] = "epoch"
-        config["evaluation_strategy"] = "epoch"
+        config["eval_strategy"] = "epoch"
         config["save_strategy"] = "epoch"
 
         cmd = build_cmd(config)
