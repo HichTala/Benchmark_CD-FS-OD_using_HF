@@ -26,12 +26,4 @@
 #SBATCH --error=logs/gpu_single%j.out     # name of error file (here, in common with the output file)
 #SBATCH --qos=
 
-module purge # purge modules inherited by default
-module load pytorch-gpu/py3/2.5.0 # load modules
-
-export PYTHONUSERBASE=$WORK/.local
-export WANDB_MODE=offline
-export NO_ALBUMENTATIONS_UPDATE=1
-set -x # activate echo of launched commands
-
 srun python -u run_object_detection.py{command}
