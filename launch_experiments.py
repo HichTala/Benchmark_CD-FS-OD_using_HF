@@ -10,10 +10,10 @@ def get_args_parser():
     parser = argparse.ArgumentParser('Launch experients')
 
     parser.add_argument('--config', type=str, default="configs/models/diffusiondet_dota.json")
-    parser.add_argument('--dataset_names', nargs='+', default=["detection-datasets/coco"])
-    parser.add_argument('--output_dir', type=str, default="diffusiondet")
+    parser.add_argument('--dataset-names', nargs='+', default=["detection-datasets/coco"])
+    parser.add_argument('--output-dir', type=str, default="diffusiondet")
 
-    parser.add_argument('--exec_type', type=str, default="slurm")
+    parser.add_argument('--exec-type', type=str, default="slurm")
 
     return parser
 
