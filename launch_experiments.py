@@ -13,7 +13,8 @@ def get_args_parser():
     parser.add_argument('--dataset-names', nargs='+', default=["detection-datasets/coco"])
     parser.add_argument('--output-dir', type=str, default="diffusiondet")
 
-    parser.add_argument('--exec-type', type=str, default="slurm")
+    parser.add_argument('--exec-type', type=str, default="python", choices=["slurm", "python"])
+    parser.add_argument('--slurm-template', type=str, default="slurm/default.slurm")
 
     return parser
 
