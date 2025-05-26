@@ -11,20 +11,20 @@ def get_args_parser():
     parser = argparse.ArgumentParser('Launch experients')
 
     parser.add_argument('--config', type=str, default="configs/models/diffusiondet_dota.json")
-    parser.add_argument('--dataset_names', nargs='+', default=["detection-datasets/coco"])
+    parser.add_argument('--dataset-names', nargs='+', default=["detection-datasets/coco"])
     parser.add_argument('--seed', nargs='+', default=["1338"])
     parser.add_argument('--shots', nargs='+', default=["10"])
-    parser.add_argument('--output_dir', type=str, default="diffusiondet")
+    parser.add_argument('--output-dir', type=str, default="diffusiondet")
 
-    parser.add_argument('--freeze_mode', type=bool, default=False)
-    parser.add_argument('--freeze_modules', type=str)
-    parser.add_argument('--freeze_at', type=str)
+    parser.add_argument('--freeze-mode', type=bool, default=False)
+    parser.add_argument('--freeze-modules', type=str)
+    parser.add_argument('--freeze-at', type=str)
 
-    parser.add_argument('--use_lora', type=bool, default=False)
-    parser.add_argument('--over_lora', type=bool, default=False)
-    parser.add_argument('--lora_ranks', nargs='+', default=["8"])
+    parser.add_argument('--use-lora', type=bool, default=False)
+    parser.add_argument('--over-lora', type=bool, default=False)
+    parser.add_argument('--lora-ranks', nargs='+', default=["8"])
 
-    parser.add_argument('--exec_type', type=str, default="slurm")
+    parser.add_argument('--exec-type', type=str, default="python")
 
     return parser
 
