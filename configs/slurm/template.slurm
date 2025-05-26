@@ -1,13 +1,13 @@
 #!/bin/bash
 #SBATCH --job-name={job_name}        # name of job
-#SBATCH -A mvq@a100
+#SBATCH -A
 # Other partitions are usable by activating/uncommenting
 # one of the 5 following directives:
 ## SBATCH -C v100-16g                 # uncomment to target only 16GB V100 GPU
 ##SBATCH -C v100-32g                 # uncomment to target only 32GB V100 GPU
 ##SBATCH --partition=gpu_p2           # uncomment for gpu_p2 partition (32GB V100 GPU)
 ##SBATCH --partition=gpu_p4          # uncomment for gpu_p4 partition (40GB A100 GPU)
-#SBATCH -C a100                     # uncomment for gpu_p5 partition (80GB A100 GPU)
+##SBATCH -C a100                     # uncomment for gpu_p5 partition (80GB A100 GPU)
 # Here, reservation of 10 CPUs (for 1 task) and 1 GPU on a single node:
 #SBATCH --nodes=1                    # we request one node
 #SBATCH --ntasks-per-node=1          # with one task per node (= number of GPUs here)
@@ -24,7 +24,7 @@
 #SBATCH --time=20:00:00              # maximum execution time requested (HH:MM:SS)
 #SBATCH --output=logs/gpu_single%j.out    # name of output file
 #SBATCH --error=logs/gpu_single%j.out     # name of error file (here, in common with the output file)
-#SBATCH --qos=qos_gpu_a100-t3
+#SBATCH --qos=
 
 module purge # purge modules inherited by default
 module load arch/a100
