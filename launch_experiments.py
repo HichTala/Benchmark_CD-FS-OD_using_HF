@@ -3,7 +3,7 @@ import json
 import os.path
 import subprocess
 
-with open("slurm_template/temaplte.slurm", "r") as file:
+with open("slurm/temaplte.slurm", "r") as file:
     slurm_script = file.read()
 
 

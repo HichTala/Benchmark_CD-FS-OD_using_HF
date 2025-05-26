@@ -2,6 +2,8 @@ runs/*
 wandb/*
 configs/dataset/*
 configs/models/*
+configs/slurm/*
 
 !configs/dataset/template.py
 !configs/models/template.json
+!configs/slurm/template.slurm
