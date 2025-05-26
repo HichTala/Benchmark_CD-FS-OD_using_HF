@@ -2,9 +2,6 @@ import argparse
 import json
 import subprocess
 
-with open("slurm/template.slurm", "r") as file:
-    slurm_script = file.read()
-
 
 def get_args_parser():
     parser = argparse.ArgumentParser('Launch experients')
@@ -30,9 +27,11 @@ def build_cmd(config):
 
 def submit_job(cmd, exec_type, **kwargs):
     if exec_type == "slurm":
-        formated_script = slurm_script.format(job_name=kwargs['dataset'], command=cmd)
+        with open(kwargs['slurm_template'], "r") as file:
+            slurm_template = file.read()
+        slurm_script = slurm_template.format(job_name=kwargs['dataset'], command=cmd)
         with open('launchers/automatic_launcher.slurm', 'w') as f:
-            f.write(formated_script)
+            f.write(slurm_script)
         print('job_name', kwargs['dataset'])
         return subprocess.call(['sbatch', 'launchers/automatic_launcher.slurm'])
     elif exec_type == "python":
@@ -55,7 +54,7 @@ def main(args):
         config["save_strategy"] = "epoch"
 
         cmd = build_cmd(config)
-        result = submit_job(cmd, exec_type=args.exec_type, dataset=dataset_name)
+        result = submit_job(cmd, exec_type=args.exec_type, dataset=dataset_name, slurm_template=args.slurm_template)
         if result != 0:
             print(f"Error running command: python run_object_detection.py{cmd}")
             return
