@@ -116,13 +116,13 @@ def main(args):
                                         "output_dir"] = f"runs/{args.output_dir}/{dataset_name.rstrip('/').split('/')[-1]}/{shot}/overlora/{seed}/{rank}"
 
                             cmd = build_cmd(config)
-                            result = submit_job(cmd, exec_type=args.exec_type, seed=seed, shot=shot, slurm_template=args.slurm_template)
+                            result = submit_job(cmd, exec_type=args.exec_type, seed=seed, shot=shot, dataset=dataset_name, slurm_template=args.slurm_template)
                             if result != 0:
                                 print(f"Error running command: python run_object_detection.py{cmd}")
                                 return
                     else:
                         cmd = build_cmd(config)
-                        result = submit_job(cmd, exec_type=args.exec_type, seed=seed, shot=shot, slurm_template=args.slurm_template)
+                        result = submit_job(cmd, exec_type=args.exec_type, seed=seed, shot=shot, dataset=dataset_name, slurm_template=args.slurm_template)
                         if result != 0:
                             print(f"Error running command: python run_object_detection.py{cmd}")
                             return
