@@ -22,7 +22,7 @@ def get_args_parser():
     parser.add_argument('--lora-ranks', nargs='+', default=["8"])
 
     parser.add_argument('--exec-type', type=str, default="python", choices=["slurm", "python"])
-    parser.add_argument('--slurm-template', type=str, default="slurm/default.slurm")
+    parser.add_argument('--slurm-template', type=str, default="configs/slurm/default.slurm")
 
     return parser
 
