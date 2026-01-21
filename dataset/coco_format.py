@@ -54,12 +54,12 @@ class COCO(datasets.GeneratorBasedBuilder):
 
     def _split_generators(self, dl_manager):
         annotation_file = {
-            "train": os.path.join(self.annotations_path, "instances_train2017.json"),
-            "validation": os.path.join(self.annotations_path, "instances_val2017.json"),
-            "test": os.path.join(self.annotations_path, "instances_test2017.json")}
-        image_folders = {"train": os.path.join(self.image_path, "train2017"),
-                         "validation": os.path.join(self.image_path, "val2017"),
-                         "test": os.path.join(self.image_path, "test2017")}
+            "train": os.path.join(self.annotations_path, "instances_train.json"),
+            "validation": os.path.join(self.annotations_path, "instances_val.json"),
+            "test": os.path.join(self.annotations_path, "instances_test.json")}
+        image_folders = {"train": os.path.join(self.image_path, "train"),
+                         "validation": os.path.join(self.image_path, "val"),
+                         "test": os.path.join(self.image_path, "test")}
 
         return [
             datasets.SplitGenerator(
@@ -102,7 +102,7 @@ class COCO(datasets.GeneratorBasedBuilder):
                     "height": image_metadata["height"],
                     "objects": [{
                         "bbox_id": ann["id"],
-                        "category": ann["category_id"],
+                        "category": ann["category_id"]-1,
                         "bbox": ann["bbox"],
                         "area": ann["area"],
                     } for ann in annotations["annotations"] if ann["image_id"] == image_metadata["id"]]

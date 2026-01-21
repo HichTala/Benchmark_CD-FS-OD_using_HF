@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# coding=utf-8
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,20 +12,32 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 
+# /// script
+# dependencies = [
+#     "transformers @ git+https://github.com/huggingface/transformers.git",
+#     "albumentations >= 1.4.16",
+#     "timm",
+#     "datasets>=4.0",
+#     "torchmetrics",
+#     "pycocotools",
+# ]
+# ///
+
 """Finetuning any 🤗 Transformers model supported by AutoModelForObjectDetection for object detection leveraging the Trainer API."""
 
 import logging
 import os
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Any, List, Mapping, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 import albumentations as A
 import numpy as np
 import torch
+from datasets import load_dataset
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
-import loratorch as lora
 
 import transformers
 from transformers import (
@@ -40,17 +51,14 @@ from transformers import (
 from transformers.image_processing_utils import BatchFeature
 from transformers.image_transforms import center_to_corners_format
 from transformers.trainer import EvalPrediction
-from transformers.trainer_utils import get_last_checkpoint
-from transformers.utils import check_min_version, send_example_telemetry
+from transformers.utils import check_min_version
 from transformers.utils.versions import require_version
 
-from datasets import load_dataset
-from transformers import Trainer
 
 logger = logging.getLogger(__name__)
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
-check_min_version("4.49.0.dev0")
+check_min_version("4.57.0.dev0")
 
 require_version("datasets>=2.0.0", "To fix: pip install -r examples/pytorch/object-detection/requirements.txt")
 
@@ -62,15 +70,15 @@ class ModelOutput:
 
 
 def format_image_annotations_as_coco(
-        image_id: str, categories: List[int], areas: List[float], bboxes: List[Tuple[float]]
+    image_id: str, categories: list[int], areas: list[float], bboxes: list[tuple[float]]
 ) -> dict:
     """Format one set of image annotations to the COCO format
 
     Args:
         image_id (str): image id. e.g. "0001"
-        categories (List[int]): list of categories/class labels corresponding to provided bounding boxes
-        areas (List[float]): list of corresponding areas to provided bounding boxes
-        bboxes (List[Tuple[float]]): list of bounding boxes provided in COCO format
+        categories (list[int]): list of categories/class labels corresponding to provided bounding boxes
+        areas (list[float]): list of corresponding areas to provided bounding boxes
+        bboxes (list[tuple[float]]): list of bounding boxes provided in COCO format
             ([center_x, center_y, width, height] in absolute coordinates)
 
     Returns:
@@ -96,14 +104,14 @@ def format_image_annotations_as_coco(
     }
 
 
-def convert_bbox_yolo_to_pascal(boxes: torch.Tensor, image_size: Tuple[int, int]) -> torch.Tensor:
+def convert_bbox_yolo_to_pascal(boxes: torch.Tensor, image_size: tuple[int, int]) -> torch.Tensor:
     """
     Convert bounding boxes from YOLO format (x_center, y_center, width, height) in range [0, 1]
     to Pascal VOC format (x_min, y_min, x_max, y_max) in absolute coordinates.
 
     Args:
         boxes (torch.Tensor): Bounding boxes in YOLO format
-        image_size (Tuple[int, int]): Image size in format (height, width)
+        image_size (tuple[int, int]): Image size in format (height, width)
 
     Returns:
         torch.Tensor: Bounding boxes in Pascal VOC format (x_min, y_min, x_max, y_max)
@@ -119,10 +127,10 @@ def convert_bbox_yolo_to_pascal(boxes: torch.Tensor, image_size: Tuple[int, int]
 
 
 def augment_and_transform_batch(
-        examples: Mapping[str, Any],
-        transform: A.Compose,
-        image_processor: AutoImageProcessor,
-        return_pixel_mask: bool = False,
+    examples: Mapping[str, Any],
+    transform: A.Compose,
+    image_processor: AutoImageProcessor,
+    return_pixel_mask: bool = False,
 ) -> BatchFeature:
     """Apply augmentations and format annotations in COCO format for object detection task"""
 
@@ -150,7 +158,7 @@ def augment_and_transform_batch(
     return result
 
 
-def collate_fn(batch: List[BatchFeature]) -> Mapping[str, Union[torch.Tensor, List[Any]]]:
+def collate_fn(batch: list[BatchFeature]) -> Mapping[str, Union[torch.Tensor, list[Any]]]:
     data = {}
     data["pixel_values"] = torch.stack([x["pixel_values"] for x in batch])
     data["labels"] = [x["labels"] for x in batch]
@@ -161,10 +169,10 @@ def collate_fn(batch: List[BatchFeature]) -> Mapping[str, Union[torch.Tensor, Li
 
 @torch.no_grad()
 def compute_metrics(
-        evaluation_results: EvalPrediction,
-        image_processor: AutoImageProcessor,
-        threshold: float = 0.0,
-        id2label: Optional[Mapping[int, str]] = None,
+    evaluation_results: EvalPrediction,
+    image_processor: AutoImageProcessor,
+    threshold: float = 0.0,
+    id2label: Optional[Mapping[int, str]] = None,
 ) -> Mapping[str, float]:
     """
     Compute mean average mAP, mAR and their variants for the object detection task.
@@ -191,7 +199,7 @@ def compute_metrics(
     # Collect targets in the required format for metric computation
     for batch in targets:
         # collect image sizes, we will need them for predictions post processing
-        batch_image_sizes = torch.tensor(np.array([x["orig_size"] for x in batch]))
+        batch_image_sizes = torch.tensor([x["orig_size"] for x in batch])
         image_sizes.append(batch_image_sizes)
         # collect targets in the required format for metric computation
         # boxes were converted to YOLO format needed for model training
@@ -205,27 +213,26 @@ def compute_metrics(
     # Collect predictions in the required format for metric computation,
     # model produce boxes in YOLO format, then image_processor convert them to Pascal VOC format
     for batch, target_sizes in zip(predictions, image_sizes):
-        batch_boxes, batch_scores, batch_labels = batch[1], batch[2], batch[3]
-        for boxe, score, label in zip(batch_boxes, batch_scores, batch_labels):
-            post_processed_predictions.append({
-                "scores": torch.tensor(score),
-                "labels": torch.tensor(label),
-                "boxes": torch.tensor(boxe)
-            })
+        batch_logits, batch_boxes = batch[1], batch[2]
+        output = ModelOutput(logits=torch.tensor(batch_logits), pred_boxes=torch.tensor(batch_boxes))
+        post_processed_output = image_processor.post_process_object_detection(
+            output, threshold=threshold, target_sizes=target_sizes
+        )
+        post_processed_predictions.extend(post_processed_output)
 
     # Compute metrics
-    metric = MeanAveragePrecision(box_format="xyxy", class_metrics=True, max_detection_thresholds=[1, 100, 300])
+    metric = MeanAveragePrecision(box_format="xyxy", class_metrics=True)
     metric.update(post_processed_predictions, post_processed_targets)
     metrics = metric.compute()
 
     # Replace list of per class metrics with separate metric for each class
     classes = metrics.pop("classes")
     map_per_class = metrics.pop("map_per_class")
-    mar_300_per_class = metrics.pop("mar_300_per_class")
-    for class_id, class_map, class_mar in zip(classes, map_per_class, mar_300_per_class):
+    mar_100_per_class = metrics.pop("mar_100_per_class")
+    for class_id, class_map, class_mar in zip(classes, map_per_class, mar_100_per_class):
         class_name = id2label[class_id.item()] if id2label is not None else class_id.item()
         metrics[f"map_{class_name}"] = class_map
-        metrics[f"mar_300_{class_name}"] = class_mar
+        metrics[f"mar_100_{class_name}"] = class_mar
 
     metrics = {k: round(v.item(), 4) for k, v in metrics.items()}
 
@@ -274,6 +281,10 @@ class DataTrainingArguments:
             )
         },
     )
+    use_fast: Optional[bool] = field(
+        default=True,
+        metadata={"help": "Use a fast torchvision-base image processor if it is supported for a given model."},
+    )
 
 
 @dataclass
@@ -308,7 +319,7 @@ class ModelArguments:
         metadata={
             "help": (
                 "The token to use as HTTP bearer authorization for remote files. If not specified, will use the token "
-                "generated when running `huggingface-cli login` (stored in `~/.huggingface`)."
+                "generated when running `hf auth login` (stored in `~/.huggingface`)."
             )
         },
     )
@@ -337,10 +348,6 @@ def main():
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
-    # # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
-    # # information sent is the one passed as arguments along with your Python/PyTorch versions.
-    send_example_telemetry("run_object_detection", model_args, data_args)
-
     # Setup logging
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -360,27 +367,10 @@ def main():
 
     # Log on each process the small summary:
     logger.warning(
-        f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu}, "
+        f"Process rank: {training_args.local_process_index}, device: {training_args.device}, n_gpu: {training_args.n_gpu}, "
         + f"distributed training: {training_args.parallel_mode.value == 'distributed'}, 16-bits training: {training_args.fp16}"
     )
     logger.info(f"Training/evaluation parameters {training_args}")
-
-    # Detecting last checkpoint.
-    checkpoint = None
-    if training_args.resume_from_checkpoint is not None:
-        checkpoint = training_args.resume_from_checkpoint
-    elif os.path.isdir(training_args.output_dir) and not training_args.overwrite_output_dir:
-        checkpoint = get_last_checkpoint(training_args.output_dir)
-        if checkpoint is None and len(os.listdir(training_args.output_dir)) > 0:
-            raise ValueError(
-                f"Output directory ({training_args.output_dir}) already exists and is not empty. "
-                "Use --overwrite_output_dir to overcome."
-            )
-        elif checkpoint is not None and training_args.resume_from_checkpoint is None:
-            logger.info(
-                f"Checkpoint detected, resuming training at {checkpoint}. To avoid this behavior, change "
-                "the `--output_dir` or add `--overwrite_output_dir` to train from scratch."
-            )
 
     # ------------------------------------------------------------------------------------------------
     # Load dataset, prepare splits
@@ -390,21 +380,18 @@ def main():
         data_args.dataset_name, cache_dir=model_args.cache_dir, trust_remote_code=model_args.trust_remote_code
     )
 
-    if "val" in dataset.keys() and "test" not in dataset.keys():
-        dataset["test"] = dataset.pop("val")
-
-    if "val" in dataset.keys() and "validation" not in dataset.keys():
-        dataset["validation"] = dataset.pop("val")
-
     # If we don't have a validation split, split off a percentage of train as validation
-    data_args.train_val_split = None if "validation" in dataset.keys() else data_args.train_val_split
+    data_args.train_val_split = None if "validation" in dataset else data_args.train_val_split
     if isinstance(data_args.train_val_split, float) and data_args.train_val_split > 0.0:
         split = dataset["train"].train_test_split(data_args.train_val_split, seed=training_args.seed)
         dataset["train"] = split["train"]
         dataset["validation"] = split["test"]
 
     # Get dataset categories and prepare mappings for label_name <-> label_id
-    categories = dataset["train"].features["objects"].feature["category"].names
+    if isinstance(dataset["train"].features["objects"], dict):
+        categories = dataset["train"].features["objects"]["category"].feature.names
+    else:  # (for old versions of `datasets` that used Sequence({...}) of the objects)
+        categories = dataset["train"].features["objects"].feature["category"].names
     id2label = dict(enumerate(categories))
     label2id = {v: k for k, v in id2label.items()}
 
@@ -417,7 +404,6 @@ def main():
         "revision": model_args.model_revision,
         "token": model_args.token,
         "trust_remote_code": model_args.trust_remote_code,
-        "_fast_init": False,
     }
     config = AutoConfig.from_pretrained(
         model_args.config_name or model_args.model_name_or_path,
@@ -437,6 +423,7 @@ def main():
         size={"max_height": data_args.image_square_size, "max_width": data_args.image_square_size},
         do_pad=True,
         pad_size={"height": data_args.image_square_size, "width": data_args.image_square_size},
+        use_fast=data_args.use_fast,
         **common_pretrained_args,
     )
 
@@ -446,8 +433,25 @@ def main():
     max_size = data_args.image_square_size
     train_augment_and_transform = A.Compose(
         [
-            A.HorizontalFlip(),
-            A.SmallestMaxSize(max_size=max_size, p=1.0),
+            A.Compose(
+                [
+                    A.SmallestMaxSize(max_size=max_size, p=1.0),
+                    A.RandomSizedBBoxSafeCrop(height=max_size, width=max_size, p=1.0),
+                ],
+                p=0.2,
+            ),
+            A.OneOf(
+                [
+                    A.Blur(blur_limit=7, p=0.5),
+                    A.MotionBlur(blur_limit=7, p=0.5),
+                    A.Defocus(radius=(1, 5), alias_blur=(0.1, 0.25), p=0.1),
+                ],
+                p=0.1,
+            ),
+            A.Perspective(p=0.1),
+            A.HorizontalFlip(p=0.5),
+            A.RandomBrightnessContrast(p=0.5),
+            A.HueSaturationValue(p=0.1),
         ],
         bbox_params=A.BboxParams(format="coco", label_fields=["category"], clip=True, min_area=25),
     )
@@ -465,8 +469,8 @@ def main():
     )
 
     dataset["train"] = dataset["train"].with_transform(train_transform_batch)
-    dataset["validation"] = dataset["validation"].with_transform(validation_transform_batch)
-    dataset["test"] = dataset["test"].with_transform(validation_transform_batch)
+    dataset["validation"] = dataset["validation"].with_transform(validation_transform_batch).select(range(500))
+    # dataset["test"] = dataset["test"].with_transform(validation_transform_batch)
 
     # ------------------------------------------------------------------------------------------------
     # Model training and evaluation with Trainer API
@@ -488,7 +492,7 @@ def main():
 
     # Training
     if training_args.do_train:
-        train_result = trainer.train(resume_from_checkpoint=checkpoint)
+        train_result = trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
         trainer.save_model()
         trainer.log_metrics("train", train_result.metrics)
         trainer.save_metrics("train", train_result.metrics)
@@ -496,7 +500,7 @@ def main():
 
     # Final evaluation
     if training_args.do_eval:
-        metrics = trainer.evaluate(eval_dataset=dataset["test"], metric_key_prefix="test")
+        metrics = trainer.evaluate(eval_dataset=dataset["validation"], metric_key_prefix="test")
         trainer.log_metrics("test", metrics)
         trainer.save_metrics("test", metrics)
 
